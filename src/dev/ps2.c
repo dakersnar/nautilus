@@ -289,21 +289,25 @@ nk_keycode_t kbd_translate(nk_scancode_t scan)
   case KEY_RALT:
     flag = KEY_ALT_FLAG;
     break;
-  case KEY_CAPS_FLAG:
+  case KEY_CAPSLOCK:
     flag = KEY_CAPS_FLAG;
     break;
   default:
     goto do_noflags;
     break;
   }
-  
+
   // do_flags:
   if (flag==KEY_CAPS_FLAG) { 
-    if ((!release) && (flags & KEY_CAPS_FLAG)) { 
-      // turn off caps lock on second press
-      flags &= ~KEY_CAPS_FLAG;
-      flag = 0;
-    } 
+    if(!release) {
+      if ((flags & KEY_CAPS_FLAG)) {
+        // turn off caps lock on second press
+        flags &= ~KEY_CAPS_FLAG;
+      } else {
+        flags |= flag;
+      }
+    }
+    return NO_KEY;
   }
 
   if (release) {
