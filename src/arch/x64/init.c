@@ -67,6 +67,10 @@
 #include <nautilus/cmdline.h>
 #include <test/test.h>
 
+#ifdef NAUT_CONFIG_WATCHDOG
+#include <nautilus/watchdog.h>
+#endif
+
 #ifdef NAUT_CONFIG_ASPACES
 #include <nautilus/aspace.h>
 #endif
@@ -541,6 +545,10 @@ init (unsigned long mbd,
     nk_run_tests(naut);
 #endif
 
+#ifdef NAUT_CONFIG_WATCHDOG
+    nk_watchdog_init(NAUT_CONFIG_WATCHDOG_DEFAULT_TIME_MS * 1000000UL);
+#endif
+    
     nk_launch_shell("root-shell",0,0,0);
 
     runtime_init();
