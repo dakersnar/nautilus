@@ -443,6 +443,10 @@ init (unsigned long mbd,
 
     smp_bringup_aps(naut);
 
+#ifdef NAUT_CONFIG_ENABLE_MONITOR
+    nk_monitor_init();
+#endif
+
     extern void nk_mwait_init(void);
     nk_mwait_init();
 
