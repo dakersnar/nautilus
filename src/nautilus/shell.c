@@ -528,10 +528,6 @@ shell_handle_cmd (struct shell_cmd_state * state, char * buf, int max)
     int i = 0;
     int j = 0;
     int ret = -1;
-    if(!strcmp(buf, "cli")) {
-        cli();
-        while(1);
-    }
 
     memset(cmd_buf, 0, SHELL_MAX_CMD);
 
