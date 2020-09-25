@@ -61,6 +61,7 @@
 #include <nautilus/random.h>
 #include <nautilus/backtrace.h>
 #include <nautilus/shell.h>
+#include <nautilus/topo.h>
 #include <dev/apic.h>
 #include <dev/gpio.h>
 
@@ -763,6 +764,142 @@ void nk_sched_map_threads(int cpu, void (func)(struct nk_thread *t, void *state)
 
     GLOBAL_UNLOCK();
 }
+
+/* KCH NOTE: The following helper functions *currently* assume that they will
+ * be called only from the map_sibling* functions below, thus locking is left out.
+ * DO NOT use them individually, otherwise you'll see race conditions.
+ */
+uint8_t nk_topo_threads_share_hwthread (struct nk_thread * a, struct nk_thread * b)
+{
+    uint8_t res;
+    res = a->current_cpu == b->current_cpu;
+    return res;
+}
+
+uint8_t nk_topo_thread_shares_hwthread_with_me (struct nk_thread * other)
+{
+    return nk_topo_threads_share_hwthread(get_cur_thread(), other);
+}
+
+uint8_t nk_topo_threads_share_core (struct nk_thread * a, struct nk_thread * b)
+{
+    uint8_t res;
+    struct sys_info *sys = per_cpu_get(system);
+    res = nk_topo_cpus_share_phys_core(sys->cpus[a->current_cpu], sys->cpus[b->current_cpu]);
+    return res;
+}
+
+uint8_t nk_topo_thread_shares_core_with_me (struct nk_thread * other)
+{
+    return nk_topo_threads_share_core(get_cur_thread(), other);
+}
+
+uint8_t 
+nk_topo_threads_share_socket (struct nk_thread * a, struct nk_thread * b)
+{
+    uint8_t res;
+    struct sys_info *sys = per_cpu_get(system);
+    res = nk_topo_cpus_share_socket(sys->cpus[a->current_cpu], sys->cpus[b->current_cpu]);
+    return res;
+}
+
+uint8_t 
+nk_topo_thread_shares_socket_with_me (struct nk_thread * other)
+{
+    return nk_topo_threads_share_socket(get_cur_thread(), other);
+}
+
+
+static uint8_t (*const thread_filter_funcs[])(struct nk_thread*, struct nk_thread*) =
+{ 
+    [NK_TOPO_HW_THREAD_FILT] = nk_topo_threads_share_hwthread,
+    [NK_TOPO_PHYS_CORE_FILT] = nk_topo_threads_share_core,
+    [NK_TOPO_SOCKET_FILT]    = nk_topo_threads_share_socket,
+};
+
+// Map a function to all other threads on the same X, where X can be hwthread, physical core, or socket
+void nk_topo_map_sibling_threads(void (func)(struct nk_thread *t, void *state), nk_topo_filt_t filter, void *state)
+{
+    GLOBAL_LOCK_CONF;
+    GLOBAL_LOCK();
+
+    rt_node *n = global_sched_state.thread_list->head;
+
+    while (n != NULL) {
+        if (n->thread->thread != get_cur_thread()) { // skip myself
+            if (filter == NK_TOPO_ALL_FILT ||
+                    thread_filter_funcs[filter](get_cur_thread(), n->thread->thread)) {
+                func(n->thread->thread, state);
+            }
+        }
+
+        n = n->next;
+    }
+
+    GLOBAL_UNLOCK();
+}
+
+void nk_topo_map_hwthread_sibling_threads(void (func)(struct nk_thread *t, void *state), void *state)
+{
+    nk_topo_map_sibling_threads(func, NK_TOPO_HW_THREAD_FILT, state);
+}
+
+void nk_topo_map_core_sibling_threads(void (func)(struct nk_thread *t, void *state), void *state)
+{
+    nk_topo_map_sibling_threads(func, NK_TOPO_PHYS_CORE_FILT, state);
+}
+
+void nk_topo_map_socket_sibling_threads(void (func)(struct nk_thread *t, void *state), void *state)
+{
+    nk_topo_map_sibling_threads(func, NK_TOPO_SOCKET_FILT, state);
+}
+
+static void
+topo_test (struct nk_thread * t, void * state)
+{
+    nk_vc_printf("THREADMAPPER: Applying func to thread %x\n", t->tid);
+}
+
+static int
+handle_threadtopotest (char * buf, void * priv)
+{
+    char aps;
+    if (((aps='a', strcmp(buf,"threadtopotest a"))==0) ||
+			((aps='l', strcmp(buf,"threadtopotest l"))==0) ||
+			((aps='p', strcmp(buf,"threadtopotest p"))==0) ||
+			((aps='s', strcmp(buf,"threadtopotest s"))==0)) {
+        switch (aps) { 
+            case 'a': 
+				nk_vc_printf("Mapping func to all siblings\n");
+                nk_topo_map_sibling_threads(topo_test,  NK_TOPO_ALL_FILT, NULL);
+                break;
+            case 'l': 
+				nk_vc_printf("Mapping func to logical core siblings\n");
+                nk_topo_map_hwthread_sibling_threads(topo_test,  NULL);
+                break;
+            case 'p': 
+				nk_vc_printf("Mapping func to core siblings\n");
+                nk_topo_map_core_sibling_threads(topo_test, NULL);
+                break;
+            case 's': 
+				nk_vc_printf("Mapping func to socket siblings\n");
+                nk_topo_map_socket_sibling_threads(topo_test, NULL);
+                break;
+            default:
+                nk_vc_printf("Unknown threadtopotest command requested\n");
+                return -1;
+        }
+    }
+
+    return 0;
+}
+
+static struct shell_cmd_impl threadtopo_impl = {
+    .cmd      = "threadtopotest",
+    .help_str = "threadtopotest <a|s|p|l>",
+    .handler  = handle_threadtopotest,
+};
+nk_register_shell_cmd(threadtopo_impl);
 
 
 void nk_sched_stop_world()

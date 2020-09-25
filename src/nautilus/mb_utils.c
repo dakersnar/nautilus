@@ -205,7 +205,6 @@ mb_get_first_hrt_addr (ulong_t mbd)
     return (void*)hrt->first_hrt_gpa;
 }
 
-
 struct multiboot_info * 
 multiboot_parse (ulong_t mbd, ulong_t magic)
 {
@@ -250,7 +249,8 @@ multiboot_parse (ulong_t mbd, ulong_t magic)
                         elf->size,
                         elf->num,
                         elf->entsize,
-                        elf->shndx);
+                        elf->shndx,
+                        elf->sections);
                 break;
                                                   }
             case MULTIBOOT_TAG_TYPE_MMAP: {

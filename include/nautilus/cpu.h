@@ -8,14 +8,14 @@
  * led by Sandia National Laboratories that includes several national 
  * laboratories and universities. You can find out more at:
  * http://www.v3vee.org  and
- * http://xtack.sandia.gov/hobbes
+ * http://xstack.sandia.gov/hobbes
  *
- * Copyright (c) 2015, Kyle C. Hale <kh@u.northwestern.edu>
+ * Copyright (c) 2015, Kyle C. Hale <khale@cs.iit.edu>
  * Copyright (c) 2015, The V3VEE Project  <http://www.v3vee.org> 
  *                     The Hobbes Project <http://xstack.sandia.gov/hobbes>
  * All rights reserved.
  *
- * Author: Kyle C. Hale <kh@u.northwestern.edu>
+ * Author: Kyle C. Hale <khale@cs.iit.edu>
  *
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
@@ -32,6 +32,7 @@ extern "C" {
 ulong_t nk_detect_cpu_freq(uint32_t);
 uint8_t nk_is_amd(void);
 uint8_t nk_is_intel(void);
+
 
 #define RFLAGS_CF   (1 << 0)
 #define RFLAGS_PF   (1 << 2)
